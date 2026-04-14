@@ -4,8 +4,7 @@ export const getAI = () => {
   let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.VITE_GEMINI_API_KEY;
   
   if (!apiKey || apiKey.startsWith("MY_G") || apiKey === "TODO_KEYHERE") {
-    // Only used as a local fallback for demonstration / fast testing
-    apiKey = "AIzaSyBujgT31fflBdELktpyIHXEC7AKIuVGIUE"; 
+    throw new Error("Missing Gemini API Key. Please add VITE_GEMINI_API_KEY to your .env or .env.local file.");
   }
   
   return new GoogleGenAI({ apiKey });
