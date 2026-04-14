@@ -29,9 +29,6 @@ jobs:
           VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseToken: ${{ secrets.FIREBASE_TOKEN }}
-          channelId: live
-          projectId: gen-lang-client-0739641506
+        run: npx firebase-tools deploy --only hosting --project gen-lang-client-0739641506
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
