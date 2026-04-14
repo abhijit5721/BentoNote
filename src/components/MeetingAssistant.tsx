@@ -32,7 +32,15 @@ import { diagnoseEnv } from "@/src/lib/diagnostics";
 import { collection, addDoc, query, where, orderBy, onSnapshot, Timestamp, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 
-import { getAI, getFastModel, getModel, callAIWithRetry, parseJSONResponse, translateText } from "@/src/lib/gemini";
+import { 
+  getAI, 
+  getModel, 
+  getFastModel, 
+  callAIWithRetry, 
+  parseJSONResponse, 
+  translateText,
+  extractActionItem
+} from "@/src/lib/gemini";
 import { LANGUAGE_NAME_MAP } from "@/src/lib/constants";
 
 interface SentimentPoint {
