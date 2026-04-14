@@ -1,7 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 
 export const getAI = () => {
-  let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.VITE_GEMINI_API_KEY;
+  let apiKey = 
+    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) || 
+    (typeof process !== 'undefined' && process.env && (process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.VITE_GEMINI_API_KEY));
   
   if (!apiKey || apiKey.startsWith("MY_G") || apiKey === "TODO_KEYHERE") {
     throw new Error("Missing Gemini API Key. Please add VITE_GEMINI_API_KEY to your .env or .env.local file.");
