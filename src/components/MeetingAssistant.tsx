@@ -143,6 +143,9 @@ export const MeetingAssistant: React.FC<MeetingAssistantProps> = ({
   useEffect(() => { languageRef.current = language; }, [language]);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const [isAudioReady, setIsAudioReady] = useState(false);
+  const [liveActionItems, setLiveActionItems] = useState<{id: string, task: string, owner: string | null}[]>([]);
+  const liveActionItemsRef = useRef<{id: string, task: string, owner: string | null}[]>([]);
+  
   const [interimTranscript, setInterimTranscript] = useState("");
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const detectedLanguageRef = useRef<string | null>(null);
@@ -662,6 +665,15 @@ ${summary.transcript}
                           .catch(e => console.error("Audio queue error:", e));
                       }
                     }
+
+                    // --- Live Action Extraction (Parallel) ---
+                    const action = await extractActionItem(trimmed);
+                    if (action && action.task) {
+                      const id = Math.random().toString(36).substring(7);
+                      const newItem = { id, task: action.task, owner: action.owner };
+                      setLiveActionItems(prev => [newItem, ...prev].slice(0, 5)); // Keep last 5
+                      liveActionItemsRef.current = [newItem, ...liveActionItemsRef.current];
+                    }
                   } catch (err) {
                     console.error("Translation error:", err);
                   }
@@ -731,6 +743,8 @@ ${summary.transcript}
     setLiveTranscript("");
     setTranslatedTranscript("");
     setInterimTranscript("");
+    setLiveActionItems([]);
+    liveActionItemsRef.current = [];
     setDetectedLanguage(null);
     liveTranscriptRef.current = "";
     setError(null);
@@ -1299,7 +1313,44 @@ ${summary.transcript}
                              <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-primary/5 rounded-full blur-2xl" />
                            </div>
                          )}
-
+                          
+                          {/* Box 3 — Live Actions (only shown if something is found) */}
+                          <AnimatePresence>
+                            {liveActionItems.length > 0 && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="px-3 md:px-5 py-3 md:py-4 rounded-[1.5rem] bg-zinc-900 border border-zinc-800 shadow-2xl relative overflow-hidden"
+                              >
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Live Actions</span>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  {liveActionItems.map((item) => (
+                                    <motion.div 
+                                      key={item.id}
+                                      initial={{ x: -10, opacity: 0 }}
+                                      animate={{ x: 0, opacity: 1 }}
+                                      className="flex items-start gap-2 bg-white/5 p-2 rounded-xl border border-white/5"
+                                    >
+                                      <div className="mt-1 w-3 h-3 rounded flex items-center justify-center bg-amber-500/20 text-amber-500">
+                                        <CheckCircle2 className="w-2.5 h-2.5" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="text-[11px] md:text-xs font-semibold text-zinc-100">{item.task}</p>
+                                        {item.owner && (
+                                          <p className="text-[9px] text-amber-500/80 font-bold uppercase mt-0.5">Assigned to: {item.owner}</p>
+                                        )}
+                                      </div>
+                                    </motion.div>
+                                  ))}
+                                </div>
+                                <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-amber-500/5 rounded-full blur-2xl" />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                        </div>
 
                       <Button variant="destructive" onClick={stopRecording} className="rounded-2xl px-6 md:px-8 py-5 md:py-6 text-sm md:text-base font-bold shadow-xl shadow-rose-500/20">

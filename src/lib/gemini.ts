@@ -131,3 +131,32 @@ Reply ONLY with the translated text. No quotes, no intro, no notes.`;
   }
 };
 
+/**
+ * Detects if a sentence contains an action item or "to-do".
+ * Returns a JSON object { task: string, owner: string | null } or null.
+ */
+export const extractActionItem = async (text: string) => {
+  if (!text || text.trim().length < 5) return null;
+  
+  try {
+    const model = getFastModel();
+    const prompt = `Analyze this spoken sentence from a meeting: "${text}"
+If it contains a specific action item, task, or request for someone to do something, extract it.
+
+Return ONLY a JSON object: {"task": "The action", "owner": "Name or 'Me' or null"}
+If NO action item is found, return ONLY the word: null
+No quotes, no code blocks, no intro.`;
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }]
+    });
+    const response = result.text?.trim() || "";
+    
+    if (response === "null" || !response.includes("{")) return null;
+    
+    return parseJSONResponse(response);
+  } catch (err) {
+    console.error("Action extraction error:", err);
+    return null;
+  }
+};
