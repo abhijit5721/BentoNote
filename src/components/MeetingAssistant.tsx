@@ -615,6 +615,7 @@ ${summary.transcript}
           let interim = "";
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
+              const prevContext = liveTranscriptRef.current;
               const newText = event.results[i][0].transcript + " ";
               console.log("Speech Result Final:", newText);
               setLiveTranscript(prev => prev + newText);
@@ -650,7 +651,7 @@ ${summary.transcript}
                 // Fire-and-forget for text caption — appears as fast as Gemini replies (~1s)
                 (async () => {
                   try {
-                    const translated = await translateText(trimmed, targetLang, liveTranscriptRef.current, detectedLanguageRef.current);
+                    const translated = await translateText(trimmed, targetLang, prevContext, detectedLanguageRef.current);
                     if (translated) {
                       // Show translated text immediately
                       setTranslatedTranscript(prev => prev + translated + " ");

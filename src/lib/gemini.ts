@@ -91,19 +91,29 @@ export const translateText = async (text: string, targetLang: string, context: s
       return text; // no translation needed
     }
 
+    const resolveLangName = (code: string) => {
+      const names: Record<string, string> = {
+        'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German', 
+        'it': 'Italian', 'pt': 'Portuguese', 'ja': 'Japanese', 'ko': 'Korean', 
+        'zh': 'Chinese', 'hi': 'Hindi', 'bn': 'Bengali', 'ru': 'Russian'
+      };
+      return names[code.toLowerCase()] || code;
+    };
+    const targetName = resolveLangName(targetLang);
+
     const model = getFastModel();
     
-    // Providing previous context significantly improves pronoun resolution (he/she/it) 
-    // and ambiguous words (e.g. "light" weight vs "light" color).
-    const contextPrompt = context 
-      ? `Conversation history for context: "${context.slice(-400)}"\n\n`
-      : "";
-      
+    const contextStr = context.trim();
+    const systemPrompt = `You are a professional real-time translator.
+Translate the NEW SENTENCE into ${targetName}.
+${contextStr ? `PREVIOUS CONTEXT for better accuracy: "${contextStr.slice(-400)}"` : ""}
+
+NEW SENTENCE TO TRANSLATE: "${text}"
+
+Reply ONLY with the translated text. No quotes, no intro, no notes.`;
+
     const result = await model.generateContent({
-      contents: [{ 
-          role: "user", 
-          parts: [{ text: `${contextPrompt}Translate this new sentence into ${targetLang}: "${text}"\n\nReply ONLY with the translation of that sentence. No explanations.` }] 
-      }]
+      contents: [{ role: "user", parts: [{ text: systemPrompt }] }]
     });
     
     const translated = result.text || "";
