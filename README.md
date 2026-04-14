@@ -8,6 +8,9 @@ This contains everything you need to run your app locally.
 
 View your app in AI Studio: https://ai.studio/apps/863a1308-40c2-41db-a606-bd3471ef935e
 
+## 🚀 Live Demo
+**Play with the live web app here:** [https://gen-lang-client-0739641506.web.app/](https://gen-lang-client-0739641506.web.app/)
+
 ## Run Locally
 
 **Prerequisites:**  Node.js
