@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 
 export const getAI = () => {
   let apiKey = 
-    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) || 
+    (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_GEMINI_API_KEY) || 
     (typeof process !== 'undefined' && process.env && (process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.VITE_GEMINI_API_KEY));
   
   if (!apiKey || apiKey.startsWith("MY_G") || apiKey === "TODO_KEYHERE") {
@@ -75,3 +75,49 @@ export const parseJSONResponse = (text: string) => {
     throw e;
   }
 };
+
+/**
+ * Fast translation with rolling context support.
+ * Uses the low-latency Gemini 2.0 Flash Lite model.
+ */
+export const translateText = async (text: string, targetLang: string, context: string = "", detectedLang: string | null = null) => {
+  if (!text || text.trim().length < 2) return "";
+  try {
+    // Fast path — if spoken language already matches target, skip translation.
+    if (detectedLang && (
+      detectedLang.toLowerCase().startsWith(targetLang.toLowerCase()) ||
+      targetLang.toLowerCase().startsWith(detectedLang.toLowerCase().slice(0, 2))
+    )) {
+      return text; // no translation needed
+    }
+
+    const model = getFastModel();
+    
+    // Providing previous context significantly improves pronoun resolution (he/she/it) 
+    // and ambiguous words (e.g. "light" weight vs "light" color).
+    const contextPrompt = context 
+      ? `Conversation history for context: "${context.slice(-400)}"\n\n`
+      : "";
+      
+    const result = await model.generateContent({
+      contents: [{ 
+          role: "user", 
+          parts: [{ text: `${contextPrompt}Translate this new sentence into ${targetLang}: "${text}"\n\nReply ONLY with the translation of that sentence. No explanations.` }] 
+      }]
+    });
+    
+    const translated = result.text || "";
+    
+    // Clean up common AI speech patterns or refusals
+    if (translated.toLowerCase().includes("please provide") || translated.toLowerCase().includes("can't translate")) {
+      return "";
+    }
+    
+    // Remove edge-case surrounding quotes
+    return translated.trim().replace(/^["']|["']$/g, '');
+  } catch (err) {
+    console.error("Translation error:", err);
+    return ""; 
+  }
+};
+

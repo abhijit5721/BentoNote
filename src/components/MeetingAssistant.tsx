@@ -32,7 +32,7 @@ import { diagnoseEnv } from "@/src/lib/diagnostics";
 import { collection, addDoc, query, where, orderBy, onSnapshot, Timestamp, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 
-import { getAI, getFastModel, getModel, callAIWithRetry, parseJSONResponse } from "@/src/lib/gemini";
+import { getAI, getFastModel, getModel, callAIWithRetry, parseJSONResponse, translateText } from "@/src/lib/gemini";
 import { LANGUAGE_NAME_MAP } from "@/src/lib/constants";
 
 interface SentimentPoint {
@@ -542,34 +542,6 @@ ${summary.transcript}
     }
   };
 
-  const translateText = async (text: string, targetLang: string) => {
-    if (!text || text.trim().length < 2) return "";
-    try {
-      // Fast path — if spoken language already matches target, skip translation.
-      const spokenLang = detectedLanguageRef.current;
-      if (spokenLang && (
-        spokenLang.toLowerCase().startsWith(targetLang.toLowerCase()) ||
-        targetLang.toLowerCase().startsWith(spokenLang.toLowerCase().slice(0, 2))
-      )) {
-        return text; // no translation needed
-      }
-
-      // Use the fast lite model for real-time translation — much lower latency
-      const model = getFastModel();
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: `Translate to ${targetLang}: "${text}". Reply with only the translation.` }] }]
-      });
-      const translated = result.text || "";
-      if (translated.toLowerCase().includes("please provide") || translated.toLowerCase().includes("can't translate")) {
-        return "";
-      }
-      return translated;
-    } catch (err) {
-      console.error("Translation error:", err);
-      return ""; 
-    }
-  };
-
   const detectLanguageWithGemini = async (blob: Blob) => {
     try {
       const base64Data = await new Promise<string>((resolve, reject) => {
@@ -678,7 +650,7 @@ ${summary.transcript}
                 // Fire-and-forget for text caption — appears as fast as Gemini replies (~1s)
                 (async () => {
                   try {
-                    const translated = await translateText(trimmed, targetLang);
+                    const translated = await translateText(trimmed, targetLang, liveTranscriptRef.current, detectedLanguageRef.current);
                     if (translated) {
                       // Show translated text immediately
                       setTranslatedTranscript(prev => prev + translated + " ");
@@ -1267,8 +1239,8 @@ ${summary.transcript}
                              className="max-h-[90px] md:max-h-[130px] overflow-y-auto custom-scrollbar"
                            >
                              <div className="text-xs md:text-sm font-medium leading-relaxed text-foreground/90">
-                               <span className="opacity-70">{liveTranscript}</span>
-                               <span className="text-emerald-600 dark:text-emerald-400 font-bold animate-pulse inline-block ml-1 bg-emerald-500/10 px-1 rounded-sm">{interimTranscript}</span>
+                               <span className="opacity-90">{liveTranscript}</span>
+                               <span className="opacity-40 italic ml-1">{interimTranscript}</span>
                                {!liveTranscript && !interimTranscript && (
                                  <span className="text-muted-foreground/50 italic flex items-center gap-2 text-[11px]">
                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
