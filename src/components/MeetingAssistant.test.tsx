@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseJSONResponse } from './MeetingAssistant';
+import { parseJSONResponse } from '../lib/gemini';
 
 describe('MeetingAssistant Utility Functions', () => {
   describe('parseJSONResponse', () => {
