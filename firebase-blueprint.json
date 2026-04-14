@@ -1,0 +1,53 @@
+{
+  "entities": {
+    "Meeting": {
+      "title": "Meeting",
+      "description": "A recorded meeting with transcript and summary",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The user ID who owns this meeting" },
+        "subject": { "type": "string", "description": "Title for the meeting" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when the meeting was saved" },
+        "transcript": { "type": "string", "description": "The full transcript of the meeting" },
+        "mom": { "type": "string", "description": "The generated Minutes of Meeting" },
+        "actionPoints": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of action items"
+        },
+        "keyTopics": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Key topics discussed"
+        },
+        "sentiment": { "type": "object", "description": "Vibe Arc data" },
+        "mindMap": { "type": "object", "description": "Mind Map data" }
+      },
+      "required": ["uid", "createdAt", "transcript", "mom", "actionPoints"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile and subscription data",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "plan": { "type": "string", "enum": ["free", "pro"] },
+        "stripeCustomerId": { "type": "string" },
+        "usageCount": { "type": "number" },
+        "lastUsageReset": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "plan"]
+    }
+  },
+  "firestore": {
+    "/meetings/{meetingId}": {
+      "schema": "Meeting",
+      "description": "Collection of meetings saved by users"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and subscription status"
+    }
+  }
+}

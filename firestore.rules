@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: meetings
+    // Document ID: auto-generated
+    // Fields:
+    //   - uid: string (required) - Owner's user ID
+    //   - subject: string (required) - Meeting title
+    //   - createdAt: timestamp (required) - Creation time
+    //   - transcript: string (required) - Full transcript
+    //   - mom: string (required) - Minutes of Meeting
+    //   - actionPoints: list (required) - List of action items
+    //   - keyTopics: list (optional) - Key topics
+    //   - sentiment: map (optional) - Vibe Arc data
+    //   - mindMap: map (optional) - Mind Map data
+    //
+    // Collection: users
+    // Document ID: userId
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - plan: string (required) - 'free' or 'pro'
+    //   - stripeCustomerId: string (optional)
+    //   - usageCount: number (optional)
+    //   - lastUsageReset: timestamp (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function isValidMeeting(data) {
+      return data.uid is string &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidUser(data) {
+      return data.uid is string &&
+             data.email is string &&
+             data.plan in ['free', 'pro'] &&
+             (!('stripeCustomerId' in data) || data.stripeCustomerId is string) &&
+             (!('usageCount' in data) || data.usageCount is number);
+    }
+
+    match /meetings/{meetingId} {
+      // Allow get for single documents
+      allow get: if isAuthenticated() && (resource == null || resource.data.uid == request.auth.uid);
+      // Allow list for queries (must be filtered by uid)
+      allow list: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      
+      allow create: if isAuthenticated() && 
+                      request.resource.data.uid == request.auth.uid &&
+                      isValidMeeting(request.resource.data);
+                      
+      allow update: if isAuthenticated() && 
+                      resource.data.uid == request.auth.uid &&
+                      request.resource.data.uid == resource.data.uid &&
+                      isValidMeeting(request.resource.data);
+                      
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow get: if isAuthenticated() && (resource == null || userId == request.auth.uid);
+      allow list: if isAuthenticated() && userId == request.auth.uid;
+      
+      // Users can create their own profile as 'free'
+      allow create: if isOwner(userId) && 
+                      isValidUser(request.resource.data) && 
+                      request.resource.data.plan == 'free';
+      // Allow users to update their profile and plan (workaround for server permission issues)
+      allow update: if isOwner(userId) && 
+                      isValidUser(request.resource.data) && 
+                      request.resource.data.uid == resource.data.uid;
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

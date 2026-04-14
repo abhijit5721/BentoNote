@@ -1,0 +1,5 @@
+{
+  "name": "Meeting Assistant",
+  "description": "A professional AI meeting assistant that provides real-time transcription, automated Minutes of Meeting (MOM), and insightful summaries using Gemini.",
+  "requestFramePermissions": ["microphone"]
+}
