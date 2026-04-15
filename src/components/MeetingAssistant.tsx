@@ -1056,6 +1056,7 @@ ${summary.transcript}
 
     setIsLoading(true);
     setError(null);
+    try {
       const model = getModel("gemini-1.5-flash");
       const result = await callAIWithRetry(() => model.generateContent({
         contents: [
