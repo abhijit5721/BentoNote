@@ -291,9 +291,9 @@ export const MeetingAssistant: React.FC<MeetingAssistantProps> = ({
             Format the output as JSON with the key 'sentiment'. Do not include any other text or markdown formatting outside the JSON:\n\n${summary.transcript}` }]
           }
         ],
-        config: { responseMimeType: "application/json" }
+        generationConfig: { responseMimeType: "application/json" }
       });
-      const responseText = result.text;
+      const responseText = result.response.text();
 
       if (!responseText) throw new Error("No response text from AI");
 
@@ -339,9 +339,9 @@ export const MeetingAssistant: React.FC<MeetingAssistantProps> = ({
             Format the output as JSON with the key 'mindMap'. Do not include any other text or markdown formatting outside the JSON:\n\n${summary.transcript}` }]
           }
         ],
-        config: { responseMimeType: "application/json" }
+        generationConfig: { responseMimeType: "application/json" }
       });
-      const responseText = result.text;
+      const responseText = result.response.text();
 
       if (!responseText) throw new Error("No response text from AI");
 
@@ -385,7 +385,7 @@ export const MeetingAssistant: React.FC<MeetingAssistantProps> = ({
       const result = await model.generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }]
       });
-      setChatMessages(prev => [...prev, { role: "assistant", content: result.text }]);
+      setChatMessages(prev => [...prev, { role: "assistant", content: result.response.text() }]);
     } catch (err) {
       console.error(err);
       setChatMessages(prev => [...prev, { role: "assistant", content: "Failed to get persona critique." }]);
@@ -450,7 +450,7 @@ ${summary.transcript}
           }
         ]
       });
-      setChatMessages(prev => [...prev, { role: "assistant", content: result.text }]);
+      setChatMessages(prev => [...prev, { role: "assistant", content: result.response.text() }]);
     } catch (err) {
       console.error(err);
       setChatMessages(prev => [...prev, { role: "assistant", content: "Sorry, I encountered an error while processing your question." }]);
@@ -474,13 +474,13 @@ ${summary.transcript}
       const ttsPromise = callAIWithRetry(() => model.generateContent({
         contents: [{ role: "user", parts: [{ text }] }],
         generationConfig: {
-          responseModalities: ["audio"],
+          responseModalities: ["AUDIO"],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName: 'Kore' },
             },
           },
-        }
+        } as any
       }));
 
       const timeoutPromise = new Promise((_, reject) => 
