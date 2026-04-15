@@ -1148,10 +1148,42 @@ ${summary.transcript}
     <div className="flex flex-col h-full min-h-0 space-y-4">
       {/* Header Controls */}
       <div className="flex items-center justify-between shrink-0">
-                {history.length}
-              </Badge>
-            )}
-          </button>
+        <div className="flex items-center space-x-3">
+          <div className="flex p-1.5 glass dark:bg-white/5 rounded-2xl">
+            <button
+              onClick={() => setView("assistant")}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                view === "assistant" 
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" 
+                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5"
+              }`}
+            >
+              Assistant
+            </button>
+            <button
+              onClick={() => setView("history")}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                view === "history" 
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" 
+                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5"
+              }`}
+            >
+              History
+            </button>
+          </div>
+          
+          <div className="flex items-center px-3 py-1.5 glass dark:bg-white/5 rounded-full space-x-2">
+            <div className={`w-2 h-2 rounded-full animate-pulse ${
+              aiStatus === "active" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+              aiStatus === "error" ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
+              "bg-slate-400"
+            }`} />
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
+              {aiStatus === "active" ? "AI Engine Ready" : 
+               aiStatus === "error" ? "Local Voice Backup" : 
+               "Initializing..."}
+            </span>
+          </div>
         </div>
       </div>
 
