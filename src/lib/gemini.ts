@@ -12,16 +12,61 @@ export const getAI = () => {
   return new GoogleGenerativeAI(apiKey);
 };
 
+// --- Model Strategy ---
+// The API often returns 404 for certain aliases in specific regions.
+// We try explicit versions first, then the generic alias, then a legacy fallback.
+const TEXT_MODELS = ["gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-pro"];
+const AUDIO_MODELS = ["gemini-2.0-flash-exp", "gemini-2.0-flash", "gemini-1.5-flash-001"];
+
+/**
+ * Robust model caller with automatic 404/403 fallback.
+ */
+export const callAIWithFallback = async (
+  prompt: any, 
+  modelList: string[], 
+  options: any = {}
+) => {
+  const ai = getAI();
+  let lastError: any;
+
+  for (const modelName of modelList) {
+    try {
+      console.log(`[AI] Attempting with model: ${modelName}`);
+      const model = ai.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent({
+        contents: typeof prompt === 'string' ? [{ role: "user", parts: [{ text: prompt }] }] : prompt.contents,
+        generationConfig: options.generationConfig || {}
+      });
+      return result;
+    } catch (err: any) {
+      lastError = err;
+      const errorMsg = err.message || String(err);
+      const is404 = errorMsg.includes("404") || errorMsg.includes("not found") || errorMsg.includes("not supported");
+      
+      if (is404) {
+        console.warn(`[AI] Model ${modelName} not found. Trying next fallback...`);
+        continue;
+      }
+      
+      // If it's a 503 or 429, we might want to retry the SAME model with backoff, 
+      // but for now we skip to the next model for simplicity in real-time settings.
+      console.error(`[AI] Error with ${modelName}:`, errorMsg);
+      if (modelName !== modelList[modelList.length - 1]) continue;
+    }
+  }
+  throw lastError;
+};
+
 // Convenience wrapper — returns a pre-bound model that uses model.generateContent
-export const getModel = (modelName = "gemini-1.5-flash") => {
+export const getModel = (modelName = "gemini-1.5-flash-001") => {
   const ai = getAI();
   return ai.getGenerativeModel({ model: modelName });
 };
 
 // Fast model for real-time translation (solid balance of speed/reliability)
-export const getFastModel = () => getModel("gemini-1.5-flash");
+export const getFastModel = () => getModel("gemini-1.5-flash-001");
 
-// Helper for exponential backoff retries
+// Helper for exponential backoff retries (used for single-model calls)
 export const callAIWithRetry = async (fn: () => Promise<any>, maxRetries = 3, initialDelay = 2000) => {
   let lastError: any;
   for (let i = 0; i < maxRetries; i++) {
@@ -97,8 +142,6 @@ export const translateText = async (text: string, targetLang: string, context: s
     };
     const targetName = resolveLangName(targetLang);
 
-    const model = getFastModel();
-    
     const contextStr = context.trim();
     const systemPrompt = `You are a professional real-time translator.
 Translate the NEW SENTENCE into ${targetName}.
@@ -108,7 +151,7 @@ NEW SENTENCE TO TRANSLATE: "${text}"
 
 Reply ONLY with the translated text. No quotes, no intro, no notes.`;
 
-    const result = await model.generateContent(systemPrompt);
+    const result = await callAIWithFallback(systemPrompt, TEXT_MODELS);
     const translated = result.response.text() || "";
     
     // Clean up common AI speech patterns or refusals
@@ -131,7 +174,6 @@ export const extractActionItem = async (text: string) => {
   if (!text || text.trim().length < 5) return null;
   
   try {
-    const model = getFastModel();
     const prompt = `Analyze this spoken sentence from a meeting: "${text}"
 If it contains a specific action item, task, or request for someone to do something, extract it.
 
@@ -139,7 +181,7 @@ Return ONLY a JSON object: {"task": "The action", "owner": "Name or 'Me' or null
 If NO action item is found, return ONLY the word: null
 No quotes, no code blocks, no intro.`;
 
-    const result = await model.generateContent(prompt);
+    const result = await callAIWithFallback(prompt, TEXT_MODELS);
     const response = result.response.text().trim() || "";
     
     if (response === "null" || !response.includes("{")) return null;
@@ -150,3 +192,6 @@ No quotes, no code blocks, no intro.`;
     return null;
   }
 };
+
+// Export the lists for use in MeetingAssistant.tsx
+export { TEXT_MODELS, AUDIO_MODELS };

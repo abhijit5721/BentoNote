@@ -36,6 +36,9 @@ import {
   getModel, 
   getFastModel, 
   callAIWithRetry, 
+  callAIWithFallback,
+  TEXT_MODELS,
+  AUDIO_MODELS,
   parseJSONResponse, 
   translateText,
   extractActionItem
@@ -468,20 +471,21 @@ ${summary.transcript}
       }
 
       const ai = getAI();
-      const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
-      
       // Use a timeout to prevent TTS from hanging the translation queue
-      const ttsPromise = callAIWithRetry(() => model.generateContent({
-        contents: [{ role: "user", parts: [{ text }] }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Kore' },
+      const ttsPromise = callAIWithFallback(
+        { contents: [{ role: "user", parts: [{ text }] }] },
+        AUDIO_MODELS,
+        {
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: 'Kore' },
+              },
             },
-          },
-        } as any
-      }));
+          } as any
+        }
+      );
 
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error("TTS Timeout")), 8000)
@@ -581,18 +585,20 @@ ${summary.transcript}
         reader.readAsDataURL(blob);
       });
 
-      const model = getModel("gemini-1.5-flash");
-      const result = await callAIWithRetry(() => model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { inlineData: { mimeType: blob.type || "audio/webm", data: base64Data } },
-              { text: "Identify the primary language being spoken by the person closest to the microphone. Ignore background noise, music, or television audio. Return strictly the BCP-47 language code (e.g. 'en-US', 'hi-IN', 'bn-IN', 'es-ES') and nothing else. If unsure, return 'en-US'." }
-            ]
-          }
-        ]
-      }));
+      const result = await callAIWithFallback(
+        {
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { inlineData: { mimeType: blob.type || "audio/webm", data: base64Data } },
+                { text: "Identify the primary language being spoken by the person closest to the microphone. Ignore background noise, music, or television audio. Return strictly the BCP-47 language code (e.g. 'en-US', 'hi-IN', 'bn-IN', 'es-ES') and nothing else. If unsure, return 'en-US'." }
+              ]
+            }
+          ]
+        },
+        TEXT_MODELS
+      );
       const code = result.response?.text?.().trim();
       if (code && (code.match(/^[a-z]{2}-[A-Z]{2}$/) || code.length < 10)) {
         return code;
@@ -645,10 +651,10 @@ ${summary.transcript}
               if (languageRef.current === 'auto' && !detectedLanguageRef.current && liveTranscriptRef.current.trim().length > 15) {
                 setIsDetecting(true);
                 const sampleText = liveTranscriptRef.current.trim().slice(0, 200);
-                const model = getModel("gemini-1.5-flash");
-                model.generateContent({
-                  contents: [{ role: "user", parts: [{ text: `Identify the language of this text. Return ONLY the BCP-47 language code (e.g. 'en-US', 'hi-IN', 'es-ES'). Text: "${sampleText}"` }] }]
-                }).then(result => {
+                callAIWithFallback(
+                  { contents: [{ role: "user", parts: [{ text: `Identify the language of this text. Return ONLY the BCP-47 language code (e.g. 'en-US', 'hi-IN', 'es-ES'). Text: "${sampleText}"` }] }] },
+                  TEXT_MODELS
+                ).then(result => {
                   const translatedText = result.response?.text?.() || "";
                   const code = translatedText.trim().replace(/['"]/g, '');
                   if (code && isRecordingRef.current) {
@@ -994,14 +1000,14 @@ ${summary.transcript}
         reader.readAsDataURL(blob);
       });
 
-      const transcriptionModel = getModel("gemini-1.5-flash");
-      const result = await callAIWithRetry(() => transcriptionModel.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { inlineData: { mimeType: blob.type || "audio/webm", data: base64Data } },
-              { text: `Transcribe this meeting with speaker diarization (e.g., Speaker A, Speaker B, etc.) and generate a professional Minutes of Meeting (MOM). 
+      const result = await callAIWithFallback(
+        {
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { inlineData: { mimeType: blob.type || "audio/webm", data: base64Data } },
+                { text: `Transcribe this meeting with speaker diarization (e.g., Speaker A, Speaker B, etc.) and generate a professional Minutes of Meeting (MOM). 
             
             ${language === 'auto' 
               ? 'Detect the primary language spoken in the audio.'
@@ -1028,8 +1034,8 @@ ${summary.transcript}
             ]
           }
         ],
-        generationConfig: { responseMimeType: "application/json" }
-      }));
+        { generationConfig: { responseMimeType: "application/json" } }
+      );
 
       const rawText = result.response?.text?.() || "";
       const transcriptionResult = parseJSONResponse(rawText);
@@ -1056,33 +1062,34 @@ ${summary.transcript}
 
     setIsLoading(true);
     setError(null);
-    try {
-      const model = getModel("gemini-1.5-flash");
-      const result = await callAIWithRetry(() => model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: `Generate a professional Minutes of Meeting (MOM) from this transcript. 
-          
-          ${language === 'auto'
-            ? 'CRITICAL: Detect the primary language of the transcript. You MUST generate the MOM, the action points, the key topics, and all other text output entirely in that detected language.'
-            : `CRITICAL: The target language for the output is ${language}. You MUST generate the transcript, the MOM, the action points, the key topics, and all other text output entirely in ${language}.`
-          }
+      const result = await callAIWithFallback(
+        {
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: `Generate a professional Minutes of Meeting (MOM) from this transcript. 
+            
+            ${language === 'auto'
+              ? 'CRITICAL: Detect the primary language of the transcript. You MUST generate the MOM, the action points, the key topics, and all other text output entirely in that detected language.'
+              : `CRITICAL: The target language for the output is ${language}. You MUST generate the transcript, the MOM, the action points, the key topics, and all other text output entirely in ${language}.`
+            }
 
-          Include: 
-          1. A concise subject/title for the meeting.
-          2. A list of 3-5 key topics discussed.
-          3. A detailed speaker-by-speaker transcript (cleaned up and formatted as "Speaker A: [text]\nSpeaker B: [text]"). 
-          4. A ${summaryLevel === 'detailed' ? 'detailed, comprehensive paragraph-based' : 'concise, bulleted'} summary of discussion points (MOM). 
-          5. A clear list of action items. 
-          6. A sentiment analysis "Vibe Arc" represented as an array of 5 objects with 'time' (string), 'score' (number from -1 to 1), and 'label' (short string like "Positive", "Tense", "Confused" - translated to ${language === 'auto' ? 'the detected language' : language}).
-          7. A Visual Topic Mind Map represented as an object with 'nodes' (array of {id, group, weight}) and 'links' (array of {source, target, value}).
-          
-          Format the output as JSON with keys: 'subject', 'keyTopics' (array), 'transcript', 'mom', 'actionPoints' (array of strings), 'sentiment' (array of objects), 'mindMap' (object). Do not include any other text or markdown formatting outside the JSON:\n\n${transcript}` }]
-          }
-        ],
-        generationConfig: { responseMimeType: "application/json" }
-      }));
+            Include: 
+            1. A concise subject/title for the meeting.
+            2. A list of 3-5 key topics discussed.
+            3. A detailed speaker-by-speaker transcript (cleaned up and formatted as "Speaker A: [text]\nSpeaker B: [text]"). 
+            4. A ${summaryLevel === 'detailed' ? 'detailed, comprehensive paragraph-based' : 'concise, bulleted'} summary of discussion points (MOM). 
+            5. A clear list of action items. 
+            6. A sentiment analysis "Vibe Arc" represented as an array of 5 objects with 'time' (string), 'score' (number from -1 to 1), and 'label' (short string like "Positive", "Tense", "Confused" - translated to ${language === 'auto' ? 'the detected language' : language}).
+            7. A Visual Topic Mind Map represented as an object with 'nodes' (array of {id, group, weight}) and 'links' (array of {source, target, value}).
+            
+            Format the output as JSON with keys: 'subject', 'keyTopics' (array), 'transcript', 'mom', 'actionPoints' (array of strings), 'sentiment' (array of objects), 'mindMap' (object). Do not include any other text or markdown formatting outside the JSON:\n\n${transcript}` }]
+            }
+          ]
+        },
+        TEXT_MODELS,
+        { generationConfig: { responseMimeType: "application/json" } }
+      );
 
       const rawText = result.response?.text?.() || "";
       const notesResult = parseJSONResponse(rawText);
