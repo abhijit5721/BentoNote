@@ -469,11 +469,13 @@ ${summary.transcript}
       }
 
       const ai = getAI();
-      const result = await callAIWithRetry(() => ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
+      
+      // Use a timeout to prevent TTS from hanging the translation queue
+      const ttsPromise = callAIWithRetry(() => ai.models.generateContent({
+        model: "gemini-2.0-flash",
         contents: [{ role: "user", parts: [{ text }] }],
         config: {
-          responseModalities: [Modality.AUDIO],
+          responseModalities: ["AUDIO"],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName: 'Kore' },
@@ -481,8 +483,15 @@ ${summary.transcript}
           },
         }
       }));
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("TTS Timeout")), 8000)
+      );
+
+      const result = await Promise.race([ttsPromise, timeoutPromise]) as any;
       
-      const base64Audio = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      const base64Audio = result.response?.content?.parts?.[0]?.inlineData?.data || 
+                         result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       if (base64Audio) {
         const binaryString = window.atob(base64Audio.replace(/\s/g, ''));
         const view = new DataView(new ArrayBuffer(binaryString.length));
@@ -666,12 +675,16 @@ ${summary.transcript}
                     console.log(`Translation Result [${targetLang}]:`, translated);
                     if (translated) {
                       setTranslatedTranscript(prev => prev + translated + " ");
-                      // Queue audio separately — only blocks audio, not text display
-                      if (isAudioEnabledRef.current) {
-                        audioQueueRef.current = audioQueueRef.current
-                          .then(() => playAudio(translated))
-                          .catch(e => console.error("Audio queue error:", e));
-                      }
+                      
+                      // Queue audio separately — use a fire-and-forget IIFE for the queue 
+                      // to ensure translations don't wait for audio to finish playing
+                      (async () => {
+                        if (isAudioEnabledRef.current) {
+                          audioQueueRef.current = audioQueueRef.current
+                            .then(() => playAudio(translated))
+                            .catch(e => console.error("Audio queue error:", e));
+                        }
+                      })();
                     }
 
                     // --- Live Action Extraction (Parallel) ---
