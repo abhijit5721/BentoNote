@@ -1034,6 +1034,7 @@ ${summary.transcript}
             ]
           }
         ],
+        TEXT_MODELS,
         { generationConfig: { responseMimeType: "application/json" } }
       );
 
@@ -1062,6 +1063,7 @@ ${summary.transcript}
 
     setIsLoading(true);
     setError(null);
+    try {
       const result = await callAIWithFallback(
         {
           contents: [
