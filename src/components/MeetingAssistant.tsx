@@ -663,8 +663,8 @@ ${summary.transcript}
                 (async () => {
                   try {
                     const translated = await translateText(trimmed, targetLang, prevContext, detectedLanguageRef.current);
+                    console.log(`Translation Result [${targetLang}]:`, translated);
                     if (translated) {
-                      // Show translated text immediately
                       setTranslatedTranscript(prev => prev + translated + " ");
                       // Queue audio separately — only blocks audio, not text display
                       if (isAudioEnabledRef.current) {
@@ -1544,23 +1544,23 @@ ${summary.transcript}
                             <div className="p-6 rounded-3xl bg-neutral-100/50 dark:bg-white/5 border border-neutral-200 dark:border-white/10 shadow-sm overflow-hidden">
                               <div className="h-24 w-full relative flex items-end justify-between px-2">
                                 {/* Sentiment Line SVG */}
-                                <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" preserveAspectRatio="none">
+                                <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
                                   <path
-                                    d={`M ${summary.sentiment.map((p, i) => `${(i / (summary.sentiment!.length - 1)) * 100}% ${50 - (p.score * 40)}%`).join(' L ')}`}
+                                    d={`M ${summary.sentiment.map((p, i) => `${(i / (summary.sentiment!.length - 1)) * 100} ${50 - (p.score * 40)}`).join(' L ')}`}
                                     fill="none"
                                     stroke="currentColor"
                                     strokeWidth="2"
                                     className="text-amber-500/30"
                                   />
-                                  {summary.sentiment.map((p, i) => (
-                                    <circle
-                                      key={i}
-                                      cx={`${(i / (summary.sentiment!.length - 1)) * 100}%`}
-                                      cy={`${50 - (p.score * 40)}%`}
-                                      r="3"
-                                      className="fill-amber-500"
-                                    />
-                                  ))}
+                                    {summary.sentiment.map((p, i) => (
+                                      <circle
+                                        key={i}
+                                        cx={(i / (summary.sentiment!.length - 1)) * 100}
+                                        cy={50 - (p.score * 40)}
+                                        r="3"
+                                        className="fill-amber-500"
+                                      />
+                                    ))}
                                 </svg>
                                 
                                 {summary.sentiment.map((p, i) => (

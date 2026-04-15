@@ -20,8 +20,8 @@ export const getModel = (modelName = "gemini-flash-latest") => {
   };
 };
 
-// Fast model for real-time translation (lighter, lower latency)
-export const getFastModel = () => getModel("gemini-2.0-flash-lite");
+// Fast model for real-time translation (solid balance of speed/reliability)
+export const getFastModel = () => getModel("gemini-1.5-flash");
 
 // Helper for exponential backoff retries
 export const callAIWithRetry = async (fn: () => Promise<any>, maxRetries = 3, initialDelay = 2000) => {
@@ -116,7 +116,8 @@ Reply ONLY with the translated text. No quotes, no intro, no notes.`;
       contents: [{ role: "user", parts: [{ text: systemPrompt }] }]
     });
     
-    const translated = result.text || "";
+    // Robust extraction of text from result
+    const translated = (typeof result.text === 'function' ? result.text() : result.text) || "";
     
     // Clean up common AI speech patterns or refusals
     if (translated.toLowerCase().includes("please provide") || translated.toLowerCase().includes("can't translate")) {
@@ -150,7 +151,8 @@ No quotes, no code blocks, no intro.`;
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }]
     });
-    const response = result.text?.trim() || "";
+    
+    const response = (typeof result.text === 'function' ? result.text() : result.text)?.trim() || "";
     
     if (response === "null" || !response.includes("{")) return null;
     
