@@ -52,9 +52,19 @@ export const callAIWithFallback = async (
     try {
       console.log(`[AI] Attempting with model: ${modelName}`);
       const model = ai.getGenerativeModel({ model: modelName });
+      
+      // CRITICAL: If falling back to 1.5 or older, we MUST strip multimodal audio configs
+      // as they cause 404/Not Supported errors on those models.
+      let generationConfig = { ...(options.generationConfig || {}) };
+      if (!modelName.includes("2.0") && generationConfig.responseModalities) {
+        console.warn(`[AI] Stripping responseModalities for non-2.0 model: ${modelName}`);
+        delete (generationConfig as any).responseModalities;
+        delete (generationConfig as any).speechConfig;
+      }
+
       const result = await model.generateContent({
         contents: typeof prompt === 'string' ? [{ role: "user", parts: [{ text: prompt }] }] : prompt.contents,
-        generationConfig: options.generationConfig || {}
+        generationConfig
       });
       return result;
     } catch (err: any) {
