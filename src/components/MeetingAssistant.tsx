@@ -35,8 +35,8 @@ import {
   getAI, 
   getModel, 
   getFastModel, 
-  callAIWithRetry, 
   callAIWithFallback,
+  listAvailableModels,
   TEXT_MODELS,
   AUDIO_MODELS,
   parseJSONResponse, 
@@ -462,7 +462,27 @@ ${summary.transcript}
     }
   };
 
+  // Diagnostic: List models on startup to help debug EEA/regional restrictions
+  useEffect(() => {
+    listAvailableModels().catch(() => {});
+  }, []);
+
   const playAudio = async (text: string) => {
+    // Safety Fallback function using browser's native SpeechSynthesis
+    const playLocalVoice = (msg: string) => {
+      console.log("[Audio] Attempting local browser voice fallback...");
+      const utterance = new SpeechSynthesisUtterance(msg);
+      // Try to match the target language if possible
+      const targetLang = targetLanguage === 'none' ? 'en-US' : targetLanguage;
+      utterance.lang = targetLang;
+      // Filter for premium or natural voices if available
+      const voices = window.speechSynthesis.getVoices();
+      const naturalVoice = voices.find(v => v.lang.startsWith(targetLang) && (v.name.includes("Natural") || v.name.includes("Neural")));
+      if (naturalVoice) utterance.voice = naturalVoice;
+      
+      window.speechSynthesis.speak(utterance);
+    };
+
     try {
       const player = audioPlayerRef.current;
       if (!player) {
@@ -556,12 +576,14 @@ ${summary.transcript}
         player.src = audioUrl;
         player.onended = () => URL.revokeObjectURL(audioUrl);
         await player.play();
+      } else {
+        // Fallback if AI returns valid response but no audio data
+        playLocalVoice(text);
       }
     } catch (err: any) {
-      console.error("TTS error:", err);
-      if (err.message?.includes("404")) {
-         setError("AI Audio Engine Error (404). Falling back to basic synthesis...");
-      }
+      console.error("[Audio] Gemini Speech Error:", err);
+      // FINAL SAFETY FALLBACK: Use browser's built-in voice so the user hears something!
+      playLocalVoice(text);
     }
   };
 

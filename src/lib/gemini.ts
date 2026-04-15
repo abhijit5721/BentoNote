@@ -1,5 +1,24 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+/**
+ * Diagnostic helper to see what models are available to the current API key.
+ * Results will be logged to the browser console.
+ */
+export const listAvailableModels = async () => {
+  try {
+    const ai = getAI();
+    // listModels is actually a method on the genAI instance in some versions, 
+    // or requires a direct fetch. We'll try common SDK methods.
+    console.log("[AI-Diagnostic] Querying available models...");
+    const models = await (ai as any).listModels?.() || [];
+    console.log("[AI-Diagnostic] Models available to this key:", models);
+    return models;
+  } catch (err) {
+    console.warn("[AI-Diagnostic] Could not list models (this is common for restricted keys):", err);
+    return [];
+  }
+};
+
 export const getAI = () => {
   let apiKey = 
     (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_GEMINI_API_KEY) || 
