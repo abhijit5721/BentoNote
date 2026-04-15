@@ -117,7 +117,7 @@ Reply ONLY with the translated text. No quotes, no intro, no notes.`;
     });
     
     // Robust extraction of text from result
-    const translated = (typeof result.text === 'function' ? result.text() : result.text) || "";
+    const translated = result.text || "";
     
     // Clean up common AI speech patterns or refusals
     if (translated.toLowerCase().includes("please provide") || translated.toLowerCase().includes("can't translate")) {
@@ -152,7 +152,7 @@ No quotes, no code blocks, no intro.`;
       contents: [{ role: "user", parts: [{ text: prompt }] }]
     });
     
-    const response = (typeof result.text === 'function' ? result.text() : result.text)?.trim() || "";
+    const response = (result.text || "").trim();
     
     if (response === "null" || !response.includes("{")) return null;
     
