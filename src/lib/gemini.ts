@@ -34,8 +34,8 @@ export const getAI = () => {
 // --- Model Strategy ---
 // The API often returns 404 for certain aliases in specific regions.
 // We try explicit versions first, then the generic alias, then a legacy fallback.
-const TEXT_MODELS = ["gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-pro"];
-const AUDIO_MODELS = ["gemini-2.0-flash-exp", "gemini-2.0-flash", "gemini-1.5-flash-001"];
+const TEXT_MODELS = ["gemini-1.5-flash-latest", "gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-pro"];
+const AUDIO_MODELS = ["gemini-2.0-flash-exp", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash-001"];
 
 /**
  * Robust model caller with automatic 404/403 fallback.

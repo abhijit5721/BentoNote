@@ -115,6 +115,8 @@ export const MeetingAssistant: React.FC<MeetingAssistantProps> = ({
   const [isAsking, setIsAsking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCritiquing, setIsCritiquing] = useState(false);
+  const [aiStatus, setAiStatus] = useState<"connecting" | "active" | "error">("connecting");
+  const [lastModelUsed, setLastModelUsed] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -464,13 +466,19 @@ ${summary.transcript}
 
   // Diagnostic: List models on startup to help debug EEA/regional restrictions
   useEffect(() => {
-    listAvailableModels().catch(() => {});
+    listAvailableModels()
+      .then(models => {
+        if (models && models.length > 0) setAiStatus("active");
+        else setAiStatus("error");
+      })
+      .catch(() => setAiStatus("error"));
   }, []);
 
   const playAudio = async (text: string) => {
     // Safety Fallback function using browser's native SpeechSynthesis
     const playLocalVoice = (msg: string) => {
       console.log("[Audio] Attempting local browser voice fallback...");
+      setAiStatus("error");
       const utterance = new SpeechSynthesisUtterance(msg);
       // Try to match the target language if possible
       const targetLang = targetLanguage === 'none' ? 'en-US' : targetLanguage;
@@ -1140,28 +1148,6 @@ ${summary.transcript}
     <div className="flex flex-col h-full min-h-0 space-y-4">
       {/* Header Controls */}
       <div className="flex items-center justify-between shrink-0">
-        <div className="flex p-1.5 glass dark:bg-white/5 rounded-2xl">
-          <button
-            onClick={() => setView("assistant")}
-            className={cn(
-              "px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2",
-              view === "assistant" ? "bg-white dark:bg-zinc-800 shadow-lg text-primary" : "opacity-40 hover:opacity-70"
-            )}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            Assistant
-          </button>
-          <button
-            onClick={() => setView("history")}
-            className={cn(
-              "px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2",
-              view === "history" ? "bg-white dark:bg-zinc-800 shadow-lg text-primary" : "opacity-40 hover:opacity-70"
-            )}
-          >
-            <History className="w-3.5 h-3.5" />
-            History
-            {history.length > 0 && (
-              <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px] bg-primary/10 text-primary border-none">
                 {history.length}
               </Badge>
             )}
