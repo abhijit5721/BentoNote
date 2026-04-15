@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { GoogleGenAI, Modality } from "@google/genai";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   FileText, 
@@ -469,13 +468,13 @@ ${summary.transcript}
       }
 
       const ai = getAI();
+      const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
       
       // Use a timeout to prevent TTS from hanging the translation queue
-      const ttsPromise = callAIWithRetry(() => ai.models.generateContent({
-        model: "gemini-2.0-flash",
+      const ttsPromise = callAIWithRetry(() => model.generateContent({
         contents: [{ role: "user", parts: [{ text }] }],
-        config: {
-          responseModalities: ["AUDIO"],
+        generationConfig: {
+          responseModalities: ["audio"],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName: 'Kore' },
@@ -490,8 +489,8 @@ ${summary.transcript}
 
       const result = await Promise.race([ttsPromise, timeoutPromise]) as any;
       
-      const base64Audio = result.response?.content?.parts?.[0]?.inlineData?.data || 
-                         result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      const base64Audio = result.response?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || 
+                         result.response?.content?.parts?.[0]?.inlineData?.data;
       if (base64Audio) {
         const binaryString = window.atob(base64Audio.replace(/\s/g, ''));
         const view = new DataView(new ArrayBuffer(binaryString.length));
@@ -582,9 +581,8 @@ ${summary.transcript}
         reader.readAsDataURL(blob);
       });
 
-      const ai = getAI();
-      const result = await callAIWithRetry(() => ai.models.generateContent({
-        model: "gemini-1.5-flash",
+      const model = getModel("gemini-1.5-flash");
+      const result = await callAIWithRetry(() => model.generateContent({
         contents: [
           {
             role: "user",
@@ -595,8 +593,7 @@ ${summary.transcript}
           }
         ]
       }));
-      const text = result.text || "";
-      const code = text.trim();
+      const code = result.response?.text?.().trim();
       if (code && (code.match(/^[a-z]{2}-[A-Z]{2}$/) || code.length < 10)) {
         return code;
       }
@@ -648,11 +645,11 @@ ${summary.transcript}
               if (languageRef.current === 'auto' && !detectedLanguageRef.current && liveTranscriptRef.current.trim().length > 15) {
                 setIsDetecting(true);
                 const sampleText = liveTranscriptRef.current.trim().slice(0, 200);
-                getAI().models.generateContent({
-                  model: "gemini-1.5-flash",
+                const model = getModel("gemini-1.5-flash");
+                model.generateContent({
                   contents: [{ role: "user", parts: [{ text: `Identify the language of this text. Return ONLY the BCP-47 language code (e.g. 'en-US', 'hi-IN', 'es-ES'). Text: "${sampleText}"` }] }]
                 }).then(result => {
-                  const translatedText = result.text || "";
+                  const translatedText = result.response?.text?.() || "";
                   const code = translatedText.trim().replace(/['"]/g, '');
                   if (code && isRecordingRef.current) {
                     console.log("Text-based language detected:", code);
@@ -997,9 +994,8 @@ ${summary.transcript}
         reader.readAsDataURL(blob);
       });
 
-      const ai = getAI();
-      const result = await callAIWithRetry(() => ai.models.generateContent({
-        model: "gemini-1.5-flash",
+      const transcriptionModel = getModel("gemini-1.5-flash");
+      const result = await callAIWithRetry(() => transcriptionModel.generateContent({
         contents: [
           {
             role: "user",
@@ -1032,10 +1028,11 @@ ${summary.transcript}
             ]
           }
         ],
-        config: { responseMimeType: "application/json" }
+        generationConfig: { responseMimeType: "application/json" }
       }));
 
-      const transcriptionResult = parseJSONResponse(result.text);
+      const rawText = result.response?.text?.() || "";
+      const transcriptionResult = parseJSONResponse(rawText);
       if (user) {
         const savedId = await saveMeeting(transcriptionResult);
         if (savedId) {
@@ -1059,9 +1056,8 @@ ${summary.transcript}
 
     setIsLoading(true);
     setError(null);
-    try {
-      const result = await callAIWithRetry(() => getAI().models.generateContent({
-        model: "gemini-1.5-flash",
+      const model = getModel("gemini-1.5-flash");
+      const result = await callAIWithRetry(() => model.generateContent({
         contents: [
           {
             role: "user",
@@ -1084,10 +1080,11 @@ ${summary.transcript}
           Format the output as JSON with keys: 'subject', 'keyTopics' (array), 'transcript', 'mom', 'actionPoints' (array of strings), 'sentiment' (array of objects), 'mindMap' (object). Do not include any other text or markdown formatting outside the JSON:\n\n${transcript}` }]
           }
         ],
-        config: { responseMimeType: "application/json" }
+        generationConfig: { responseMimeType: "application/json" }
       }));
 
-      const notesResult = parseJSONResponse(result.text);
+      const rawText = result.response?.text?.() || "";
+      const notesResult = parseJSONResponse(rawText);
       if (user) {
         const savedId = await saveMeeting(notesResult);
         if (savedId) {

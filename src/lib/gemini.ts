@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const getAI = () => {
   let apiKey = 
@@ -9,15 +9,13 @@ export const getAI = () => {
     throw new Error("Missing Gemini API Key. Please add VITE_GEMINI_API_KEY to your .env or .env.local file.");
   }
   
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenerativeAI(apiKey);
 };
 
-// Convenience wrapper — returns a pre-bound model that uses ai.models.generateContent
+// Convenience wrapper — returns a pre-bound model that uses model.generateContent
 export const getModel = (modelName = "gemini-1.5-flash") => {
   const ai = getAI();
-  return {
-    generateContent: (req: any) => ai.models.generateContent({ model: modelName, ...req })
-  };
+  return ai.getGenerativeModel({ model: modelName });
 };
 
 // Fast model for real-time translation (solid balance of speed/reliability)
@@ -58,7 +56,6 @@ export const parseJSONResponse = (text: string) => {
     return JSON.parse(text);
   } catch (e) {
     // If it fails, try to extract the first valid JSON object
-    // We look for the first '{' and then try to find the matching '}' by trying substrings
     let start = text.indexOf("{");
     if (start === -1) throw e;
     
@@ -78,7 +75,6 @@ export const parseJSONResponse = (text: string) => {
 
 /**
  * Fast translation with rolling context support.
- * Uses the low-latency Gemini 2.0 Flash Lite model.
  */
 export const translateText = async (text: string, targetLang: string, context: string = "", detectedLang: string | null = null) => {
   if (!text || text.trim().length < 2) return "";
@@ -112,12 +108,8 @@ NEW SENTENCE TO TRANSLATE: "${text}"
 
 Reply ONLY with the translated text. No quotes, no intro, no notes.`;
 
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: systemPrompt }] }]
-    });
-    
-    // Robust extraction of text from result for Unified SDK
-    const translated = result.text || "";
+    const result = await model.generateContent(systemPrompt);
+    const translated = result.response.text() || "";
     
     // Clean up common AI speech patterns or refusals
     if (translated.toLowerCase().includes("please provide") || translated.toLowerCase().includes("can't translate")) {
@@ -134,7 +126,6 @@ Reply ONLY with the translated text. No quotes, no intro, no notes.`;
 
 /**
  * Detects if a sentence contains an action item or "to-do".
- * Returns a JSON object { task: string, owner: string | null } or null.
  */
 export const extractActionItem = async (text: string) => {
   if (!text || text.trim().length < 5) return null;
@@ -148,11 +139,8 @@ Return ONLY a JSON object: {"task": "The action", "owner": "Name or 'Me' or null
 If NO action item is found, return ONLY the word: null
 No quotes, no code blocks, no intro.`;
 
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }]
-    });
-    
-    const response = (result.text || "").trim();
+    const result = await model.generateContent(prompt);
+    const response = result.response.text().trim() || "";
     
     if (response === "null" || !response.includes("{")) return null;
     
