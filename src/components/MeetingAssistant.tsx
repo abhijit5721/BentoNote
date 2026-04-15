@@ -584,7 +584,7 @@ ${summary.transcript}
 
       const ai = getAI();
       const result = await callAIWithRetry(() => ai.models.generateContent({
-        model: "gemini-flash-latest",
+        model: "gemini-1.5-flash",
         contents: [
           {
             role: "user",
@@ -595,7 +595,8 @@ ${summary.transcript}
           }
         ]
       }));
-      const code = result.text?.trim();
+      const text = result.response?.text?.() || result.text || "";
+      const code = text.trim();
       if (code && (code.match(/^[a-z]{2}-[A-Z]{2}$/) || code.length < 10)) {
         return code;
       }
@@ -648,10 +649,11 @@ ${summary.transcript}
                 setIsDetecting(true);
                 const sampleText = liveTranscriptRef.current.trim().slice(0, 200);
                 getAI().models.generateContent({
-                  model: "gemini-flash-latest",
+                  model: "gemini-1.5-flash",
                   contents: [{ role: "user", parts: [{ text: `Identify the language of this text. Return ONLY the BCP-47 language code (e.g. 'en-US', 'hi-IN', 'es-ES'). Text: "${sampleText}"` }] }]
                 }).then(result => {
-                  const code = result.text?.trim().replace(/['"]/g, '');
+                  const translatedText = result.response?.text?.() || result.text || "";
+                  const code = translatedText.trim().replace(/['"]/g, '');
                   if (code && isRecordingRef.current) {
                     console.log("Text-based language detected:", code);
                     setDetectedLanguage(code);
@@ -997,7 +999,7 @@ ${summary.transcript}
 
       const ai = getAI();
       const result = await callAIWithRetry(() => ai.models.generateContent({
-        model: "gemini-flash-latest",
+        model: "gemini-1.5-flash",
         contents: [
           {
             role: "user",
@@ -1059,7 +1061,7 @@ ${summary.transcript}
     setError(null);
     try {
       const result = await callAIWithRetry(() => getAI().models.generateContent({
-        model: "gemini-flash-latest",
+        model: "gemini-1.5-flash",
         contents: [
           {
             role: "user",

@@ -13,7 +13,7 @@ export const getAI = () => {
 };
 
 // Convenience wrapper — returns a pre-bound model that uses ai.models.generateContent
-export const getModel = (modelName = "gemini-flash-latest") => {
+export const getModel = (modelName = "gemini-1.5-flash") => {
   const ai = getAI();
   return {
     generateContent: (req: any) => ai.models.generateContent({ model: modelName, ...req })
@@ -116,8 +116,8 @@ Reply ONLY with the translated text. No quotes, no intro, no notes.`;
       contents: [{ role: "user", parts: [{ text: systemPrompt }] }]
     });
     
-    // Robust extraction of text from result
-    const translated = result.text || "";
+    // Robust extraction of text from result for Unified SDK
+    const translated = result.response?.text?.() || result.text || "";
     
     // Clean up common AI speech patterns or refusals
     if (translated.toLowerCase().includes("please provide") || translated.toLowerCase().includes("can't translate")) {
