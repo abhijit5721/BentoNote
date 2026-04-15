@@ -117,7 +117,7 @@ Reply ONLY with the translated text. No quotes, no intro, no notes.`;
     });
     
     // Robust extraction of text from result for Unified SDK
-    const translated = result.response?.text?.() || result.text || "";
+    const translated = result.text || "";
     
     // Clean up common AI speech patterns or refusals
     if (translated.toLowerCase().includes("please provide") || translated.toLowerCase().includes("can't translate")) {
