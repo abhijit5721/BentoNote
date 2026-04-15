@@ -1034,7 +1034,8 @@ ${summary.transcript}
             ]
           }
         ],
-        TEXT_MODELS,
+      },
+      TEXT_MODELS,
         { generationConfig: { responseMimeType: "application/json" } }
       );
 
